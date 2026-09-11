@@ -86,6 +86,7 @@ pub struct TransactionId(String);
 #[derive(Debug, Eq, Hash, PartialEq)] 
 pub struct Money(i64); // keeping i64 instead of f64 to avoid precision errors
 
+#[derive(Debug)]
 struct Customer {
     id: CustomerId,
     name: String, 
@@ -120,4 +121,5 @@ struct Transaction {
 fn main() {
     let mut bank = Bank::new();
     bank.create_customer("yash".to_string(), "ysonalekar@gmail.com".to_string());
+    println!("{:?}", bank.customers); // derieves Debug so it can be printed in debug mode 
 }

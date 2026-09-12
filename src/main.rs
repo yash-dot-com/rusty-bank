@@ -59,6 +59,21 @@ impl Bank {
         let customer_id = customer.id.clone();
         self.customers.insert(customer_id, customer);
     }
+
+    fn get_customer(&self, customerid: &CustomerId) { // functions takes ownership of value if not passed with reference, here we take CustomerId as reference because we only want to look it up 
+        match self.customers.get(customerid) { // returns Option<&Customer> so we need to pattern match it.
+            Some(customer) => {
+                println!("customer found!");
+                println!("name : {}", customer.name);
+                println!("email : {}", customer.email);
+
+            },
+
+            None => {
+                println!("Customer with Id : {:?} not found!", customerid);
+            }
+        }
+    }
 }
 
 enum AccountType {
@@ -86,7 +101,7 @@ pub struct TransactionId(String);
 #[derive(Debug, Eq, Hash, PartialEq)] 
 pub struct Money(i64); // keeping i64 instead of f64 to avoid precision errors
 
-#[derive(Debug)]
+#[derive(Debug)] // derieves Debug so it can be printed 
 struct Customer {
     id: CustomerId,
     name: String, 
@@ -121,5 +136,8 @@ struct Transaction {
 fn main() {
     let mut bank = Bank::new();
     bank.create_customer("yash".to_string(), "ysonalekar@gmail.com".to_string());
-    println!("{:?}", bank.customers); // derieves Debug so it can be printed in debug mode 
+    println!("{:?}", bank.customers); 
+
+    let customerid = CustomerId("123".to_string());
+    bank.get_customer(&customerid);
 }

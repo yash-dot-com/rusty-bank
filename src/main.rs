@@ -118,7 +118,9 @@ impl Bank {
     //     }
     // }
 
-    fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType) {
+    //  refactoring create_account() fn to return AccountId. 
+    // returns &AccountId because I don't want to move accountid out of the account object.
+    fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType) -> Option<AccountId> {
         match self.customers.get_mut(customer_id) {
             Some(customer) => {
                 let account_id = AccountId("123".to_string());
@@ -130,11 +132,25 @@ impl Bank {
                 );
 
                 customer.accounts.push(account_id.clone());
-                // accounts hashmap owns the account_id 
+                // cloning account_id before accounts hashmap owns the account_id 
+                let returned_id = account_id.clone();
+
                 self.accounts.insert(account_id, account);
+                Some(returned_id)
+                
+                // ownership flow
+                //                     ┌── clone → Account.id
+                //                     │
+                // account_id ─────────┼── clone → Customer.accounts
+                //                     │
+                //                     ├── clone → returned_id
+                //                     │
+                //                     └── move → Bank.accounts HashMap key
+
             },
             None => {
                 println!("customer doesn't exists, account cannot be created.");
+                None
             },
         }
     }
@@ -266,6 +282,8 @@ fn main() {
     // create account for customer 
     // Account -> I own the account 
     // &Account -> I borrow the account 
+    // T -> the thing itself 
+    // &T -> temporary borrowed reference to that thing.
     bank.create_account(&customerid, AccountType::Savings);
     println!("customer id : {:?}", customerid);
 

@@ -97,22 +97,43 @@ impl Bank {
 
     // customer CRUD done. 
     // lets build account CRUD 
-    fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType, initial_balance: Money = 0, ) {
-        // check if customer exists 
-        // generate new account id
-        // create new account
-        // store account in self.hashmap & customer.accounts vector 
+    // fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType, initial_balance: Money = 0, ) {
+    //     // check if customer exists 
+    //     // generate new account id
+    //     // create new account
+    //     // store account in self.hashmap & customer.accounts vector 
+    //     // MAJOR OWNERSHIP REFACTOR 
+    //     // bank owns the accountid field for hashmap 
+    //     // customer only keeps the reference because bank is the source of truth. 
+    //     match self.customers.get_mut(customer_id) {
+    //         Some(customer) => {
+    //             let account_id = AccountId("123".to_string());
+    //             let customer_id = customer.id.clone(); // cloning customer id to store in hashmap without taking ownership from customer object.
+    //             let account = Account::new(account_id.clone(), account_type, customer_id);
+
+    //             customer.accounts.push(account_id.clone()); // account_id already moved. 
+    //             self.accounts.insert(account_id, account); // again account_id already moved. 
+    //         }
+    //         None => println!("Customer doesn't exists, Account cannot be created.")
+    //     }
+    // }
+
+    fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType) {
         match self.customers.get_mut(customer_id) {
             Some(customer) => {
                 let account_id = AccountId("123".to_string());
-                let customer_id = customer.id.clone(); // cloning customer id to store in hashmap without taking ownership from customer object.
-                let account = Account::new(account_id.clone(), account_type, customer_id);
+                
+                let account = Account::new(
+                    account_id.clone(),
+                    account_type,
+                    customer.id.clone(),
+                );
 
-                customer.accounts.push(account_id.clone()); // account_id already moved. 
-                self.accounts.insert(account_id, account); // again account_id already moved. 
-
-            }
-            None => println!("Customer doesn't exists, Account cannot be created.")
+                customer.accounts.push(account_id.clone());
+                // accounts hashmap owns the account_id 
+                self.accounts.insert(account_id, account);
+            },
+            None => println!("customer doesn't exists, account cannot be created."),
         }
     }
 

@@ -95,6 +95,27 @@ impl Bank {
         }
     }
 
+    // customer CRUD done. 
+    // lets build account CRUD 
+    fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType, initial_balance: Money = 0, ) {
+        // check if customer exists 
+        // generate new account id
+        // create new account
+        // store account in self.hashmap & customer.accounts vector 
+        match self.customers.get_mut(customer_id) {
+            Some(customer) => {
+                let account_id = AccountId("123".to_string());
+                let customer_id = customer.id.clone(); // cloning customer id to store in hashmap without taking ownership from customer object.
+                let account = Account::new(account_id.clone(), account_type, customer_id);
+
+                customer.accounts.push(account_id.clone()); // account_id already moved. 
+                self.accounts.insert(account_id, account); // again account_id already moved. 
+
+            }
+            None => println!("Customer doesn't exists, Account cannot be created.")
+        }
+    }
+
 
 }
 
@@ -116,7 +137,7 @@ enum TransactionType {
 // CustomerId isn't hashable or equatable by default, we use macros to make them h-able & e-able.
 pub struct CustomerId(String);
 
-#[derive(Debug, Eq, Hash, PartialEq)] 
+#[derive(Debug, Eq, Hash, PartialEq, Clone)] 
 pub struct AccountId(String);
 #[derive(Debug, Eq, Hash, PartialEq)] 
 pub struct TransactionId(String);
@@ -145,6 +166,19 @@ struct Account {
     owner_id: CustomerId,
     balance: Money, 
     transactions: Vec<Transaction>, // transaction objects owned by accounts 
+}
+
+impl Account {
+    // constructor for account, balance & transactions start at a known default.
+    fn new(
+        id: AccountId,
+        account_type: AccountType,
+        owner_id: CustomerId
+    ) -> Self {
+        Self {
+            id, account_type, owner_id, balance: Money(0), transactions: Vec::new(),
+        }
+    }
 }
 
 struct Transaction {

@@ -122,7 +122,7 @@ impl Bank {
         match self.customers.get_mut(customer_id) {
             Some(customer) => {
                 let account_id = AccountId("123".to_string());
-                
+
                 let account = Account::new(
                     account_id.clone(),
                     account_type,
@@ -133,10 +133,38 @@ impl Bank {
                 // accounts hashmap owns the account_id 
                 self.accounts.insert(account_id, account);
             },
-            None => println!("customer doesn't exists, account cannot be created."),
+            None => {
+                println!("customer doesn't exists, account cannot be created.");
+            },
         }
     }
 
+    fn get_account(&self, account_id: &AccountId) -> Option<&Account> {
+        // check if account exists, return &Account 
+        // else return None 
+        // match self.accounts.get(account_id) {
+        //     Some(account) => Some(account), 
+        //     None => None,
+        // }
+
+        // also the hashmap returns Option<&Account> so we can just put 
+        self.accounts.get(account_id)
+    }
+
+    fn get_account_owner(&self, account_id: &AccountId) -> Option<&Customer> {
+        // check if account exists 
+        // if yes then return its customer 
+        // if no then return none.
+        match self.accounts.get(account_id) {
+            Some(account) => {
+                match self.customers.get(&account.owner_id) {
+                    Some(owner) => Some(owner),
+                    None => None,
+                }
+            },
+            None => None,
+        }
+    }
 
 }
 
@@ -196,6 +224,7 @@ impl Account {
         account_type: AccountType,
         owner_id: CustomerId
     ) -> Self {
+        println!("creating account for customer : {:?}", owner_id);
         Self {
             id, account_type, owner_id, balance: Money(0), transactions: Vec::new(),
         }
@@ -209,7 +238,9 @@ struct Transaction {
 }
 
 
-
+// there is something called as ownership tree that I need to understand properly 
+// to understand when to use immutable reference or mutable reference. 
+// also I need to understand how to structure a rust program / project. 
 fn main() {
     let mut bank = Bank::new();
     bank.create_customer("yash".to_string(), "ysonalekar@gmail.com".to_string());
@@ -231,6 +262,19 @@ fn main() {
         },
         None => println!("didn't find the customer with id : {:?}", customerid)
     }
+
+    // create account for customer 
+    // Account -> I own the account 
+    // &Account -> I borrow the account 
+    bank.create_account(&customerid, AccountType::Savings);
+    println!("customer id : {:?}", customerid);
+
+    let customer = bank.get_account_owner(&AccountId("123".to_string()));
+    match customer{
+        Some(customer) => println!("customer name owning account id : {} is {}", "123" ,customer.name),
+        None => println!("customer doesn't exists"),
+    }
+
 
     bank.delete_customer(&customerid);
     // this not required because HashMap.remove() throws data, so we can own it since its not owned by the hashmap anymore and consume, discard it.

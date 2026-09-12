@@ -60,20 +60,13 @@ impl Bank {
         self.customers.insert(customer_id, customer);
     }
 
-    fn get_customer(&self, customerid: &CustomerId) { // functions takes ownership of value if not passed with reference, here we take CustomerId as reference because we only want to look it up 
-        match self.customers.get(customerid) { // returns Option<&Customer> so we need to pattern match it.
-            Some(customer) => {
-                println!("customer found!");
-                println!("name : {}", customer.name);
-                println!("email : {}", customer.email);
-
-            },
-
-            None => {
-                println!("Customer with Id : {:?} not found!", customerid);
-            }
-        }
+    fn get_customer(&self, customerid: &CustomerId) -> Option<&Customer> { // functions takes ownership of value if not passed with reference, here we take CustomerId as reference because we only want to look it up 
+        // refactor, we just want to return the reference to the found customer. 
+        // cli will decide what to do with it. 
+        return self.customers.get(customerid)
     }
+
+
 }
 
 enum AccountType {
@@ -139,5 +132,9 @@ fn main() {
     println!("{:?}", bank.customers); 
 
     let customerid = CustomerId("123".to_string());
-    bank.get_customer(&customerid);
+    let customer = bank.get_customer(&customerid);
+    match customer{
+        Some(customer) => println!("customer found with id : {:?} name : {}", customer.id, customer.name), // {} formatter requires the variable to implement Display Trait (learn later)
+        None => println!("customer not found"),
+    }
 }

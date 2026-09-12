@@ -137,7 +137,7 @@ impl Bank {
 
                 self.accounts.insert(account_id, account);
                 Some(returned_id)
-                
+
                 // ownership flow
                 //                     ┌── clone → Account.id
                 //                     │
@@ -182,14 +182,41 @@ impl Bank {
         }
     }
 
+    // fn to list customer's all accounts must return Option<Vec<Account>>
+    fn get_all_accounts(&self, customer_id: &CustomerId) -> Option<Vec<&Account>> {
+        // bank owns account 
+        // get_all_accounts() -> borrows accounts -> Vec<&Account> 
+        // cli iterates and prints 
+        match self.customers.get(customer_id) {
+            Some(customer) => {
+                println!("customer found: {}", customer.name);
+                let mut accounts = Vec::new();
+
+                // if no account id we return empty vector
+
+                for account_id in &customer.accounts {
+                    match self.accounts.get(account_id){
+                        Some(account) => accounts.push(account),
+                        None => {}
+                    }
+                }
+                // return Some(accounts) after constructing the vector
+                Some(accounts)
+            },
+            None => None
+        }
+    }
+
 }
 
+#[derive(Debug)]
 enum AccountType {
     Savings,
     Current,
     Investment,
 }
 
+#[derive(Debug)]
 enum TransactionType {
     Deposit,
     Withdrawal,
@@ -225,6 +252,7 @@ impl Customer {
     }
 }
 
+#[derive(Debug)]
 struct Account {
     id: AccountId,
     account_type: AccountType,
@@ -247,6 +275,7 @@ impl Account {
     }
 }
 
+#[derive(Debug)]
 struct Transaction {
     id: TransactionId,
     amount: Money, 
@@ -284,8 +313,24 @@ fn main() {
     // &Account -> I borrow the account 
     // T -> the thing itself 
     // &T -> temporary borrowed reference to that thing.
-    bank.create_account(&customerid, AccountType::Savings);
-    println!("customer id : {:?}", customerid);
+    let account_id_1 = bank.create_account(&customerid, AccountType::Savings);
+    match account_id_1 {
+        Some(account_id) => {
+            println!("account created : {:?}", account_id);
+
+            match bank.get_account(&account_id) {
+                Some(account) => {println!("account found : {:?}", account.id)},
+                None => println!("account not found"),
+            }
+
+            match bank.get_account_owner(&account_id) {
+                Some(owner) => {println!("owner found : {:?}", owner.name)},
+                None => {println!("owner not found")},
+            }
+        },
+
+        None => println!("account creation failed"),
+    }
 
     let customer = bank.get_account_owner(&AccountId("123".to_string()));
     match customer{
@@ -293,7 +338,16 @@ fn main() {
         None => println!("customer doesn't exists"),
     }
 
-
+    let all_accounts = bank.get_all_accounts(&CustomerId("123".to_string()));
+    match all_accounts {
+        Some(accounts) => {
+            for account in accounts {
+                println!("{:?}", account);
+            }
+        }, 
+        None => println!("No accounts found!"),
+    }
+    
     bank.delete_customer(&customerid);
     // this not required because HashMap.remove() throws data, so we can own it since its not owned by the hashmap anymore and consume, discard it.
     // match bank.get_customer(&customerid){

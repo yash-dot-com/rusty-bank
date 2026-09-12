@@ -66,6 +66,25 @@ impl Bank {
         return self.customers.get(customerid)
     }
 
+    // &self X we need mutable reference &mut self correct!
+    // read  → &self + get()
+    // write → &mut self + get_mut()
+    fn update_customer(&mut self, customer_id: &CustomerId, name: String, email: String) {
+        // we need mutable reference to the customer object to actually change its content. 
+        // let mut customer = self.customers.get(customer_id); // <- WRONG .get return immutable reference & we need &mut reference.
+        let customer = self.customers.get_mut(customer_id);
+        match customer{
+            Some(customer ) => {
+                customer.name = name;
+                customer.email = email;
+            },
+
+            None => {
+                println!("customer with id : {:?} doesn't exists", customer_id);
+            }
+        }
+    }
+
 
 }
 
@@ -136,5 +155,15 @@ fn main() {
     match customer{
         Some(customer) => println!("customer found with id : {:?} name : {}", customer.id, customer.name), // {} formatter requires the variable to implement Display Trait (learn later)
         None => println!("customer not found"),
+    }
+
+    bank.update_customer(&customerid, "yash sonalekar".to_string(), "yashislearning@gmail.com".to_string());
+    match bank.get_customer(&customerid){
+        Some(customer) => {
+            println!("customer details updated!");
+            println!("name : {}", customer.name);
+            println!("email : {}", customer.email);
+        },
+        None => println!("didn't find the customer with id : {:?}", customerid)
     }
 }

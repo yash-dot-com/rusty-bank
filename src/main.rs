@@ -207,6 +207,84 @@ impl Bank {
         }
     }
 
+    fn close_account(&mut self, account_id: &AccountId) {
+        // first lets check if account exists in the bank 
+        // if yes then lets remove it from bank 
+        // then we will proceed to remove from it from owner's account id vector. 
+    //     match self.accounts.get(account_id) {
+    //         Some(account) => {
+    //             // if the account exists, 
+    //             let owner_id = account.owner_id.clone();
+    //             let owner = self.customers.get_mut(&owner_id);
+    //             match owner {
+    //                 Some(owner) => {
+    //                     owner.accounts.retain(|id| id != account_id);
+    //                 },
+    //                 None => {
+    //                     println!("account has no owner!")
+    //                 }
+    //             }
+    
+    //             match self.accounts.remove(account_id) {
+    //                 Some(_) => {
+    //                     println!("account closed successfully!");
+    //                 },
+    //                 None => {
+    //                     println!("could not close account");
+    //                 }
+    //             }
+    
+    //         },
+    //         None => {
+    //             println!("account doesn't exists!");
+    //         }
+    // }
+
+    // clever code 
+    // remove(account_id)
+    //     ↓
+    // Option<Account>
+    //     ↓
+    // Some(account)
+    //     ↓
+    // account.owner_id
+    //     ↓
+    // find customer
+    //     ↓
+    // retain account_id
+    match self.accounts.remove(account_id) {
+        Some(account) => {
+            let owner_id = account.owner_id;
+            match self.customers.get_mut(&owner_id) {
+                Some(owner) => {
+                    owner.accounts.retain(|id| id != account_id);
+                    println!("account closed successfully!");
+                },
+                None => {
+                    println!("owner not found!");
+                }
+            }
+        },
+        None => {
+            println!("account not found!");
+        }
+    } 
+    // how its working :-
+    // Bank.accounts
+    //     │
+    //     │ remove(account_id)
+    //     ↓
+    // Account  ← you own it
+    //     │
+    //     │ move owner_id
+    //     ↓
+    // Customer
+    //     │
+    //     │ retain()
+    //     ↓
+    // remove AccountId from customer's Vec
+    }
+
 }
 
 #[derive(Debug)]
@@ -347,7 +425,9 @@ fn main() {
         }, 
         None => println!("No accounts found!"),
     }
-    
+
+    bank.close_account(&AccountId("123".to_string()));
+
     bank.delete_customer(&customerid);
     // this not required because HashMap.remove() throws data, so we can own it since its not owned by the hashmap anymore and consume, discard it.
     // match bank.get_customer(&customerid){

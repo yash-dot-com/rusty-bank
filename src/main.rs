@@ -85,6 +85,16 @@ impl Bank {
         }
     }
 
+    // delete customer needs reference to CustomerId 
+    fn delete_customer(&mut self, customer_id: &CustomerId) {
+        // self.customers.remove(customer_id); // .remove() returns Option<V> containing removed value if the key existed in the map. 
+        // notice .remove returns Option<V> not Option<&V> that means its throwing away the data, removing it from hashmap and giving us the ownership of removed data 
+        match self.customers.remove(customer_id) {
+            Some(customer) => println!("deleted customer : {:?}", customer.id),
+            None => println!("couldn't find the user with id : {:?}", customer_id),
+        }
+    }
+
 
 }
 
@@ -166,4 +176,11 @@ fn main() {
         },
         None => println!("didn't find the customer with id : {:?}", customerid)
     }
+
+    bank.delete_customer(&customerid);
+    // this not required because HashMap.remove() throws data, so we can own it since its not owned by the hashmap anymore and consume, discard it.
+    // match bank.get_customer(&customerid){
+    //     Some(customer) => println!("customer not deleted! {}", customer.name),
+    //     None => println!("customer not found!"),
+    // }
 }

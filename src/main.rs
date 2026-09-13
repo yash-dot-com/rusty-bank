@@ -23,6 +23,7 @@
 // bank --owns-- customer --owns-- accounts (saving, current, investments) --owns-- transactions 
 use std::{collections::HashMap};
 
+// mutable reference of bank will allow mutable access to all the variables owned by it. 
 struct Bank {
     customers: HashMap<CustomerId, Customer>,
     accounts: HashMap<AccountId, Account>,
@@ -32,6 +33,8 @@ struct Bank {
 // bank must be able to create customers
 
 impl Bank {
+    // revised. 
+    // constructor for bank object
     fn new() -> Self { // create an empty customer & account hashmap when bank object is created.
         println!("bank created successfully!");
         return Bank {
@@ -40,6 +43,7 @@ impl Bank {
         };
     }
 
+    // 
     fn create_customer(&mut self, name: String, email: String){ // responsible only for creation, the data input should be handled by the main function.    
         let id: CustomerId = CustomerId("123".to_string()); // rust doesn't implicitly converts datatypes for us, so manually converted &str (reference of string baked into main program) to String (stored on heap during runtime) then into customerId.
         let customer = Customer::new(id, name, email);
@@ -60,13 +64,15 @@ impl Bank {
         self.customers.insert(customer_id, customer);
     }
 
+    // need only read access
     fn get_customer(&self, customerid: &CustomerId) -> Option<&Customer> { // functions takes ownership of value if not passed with reference, here we take CustomerId as reference because we only want to look it up 
         // refactor, we just want to return the reference to the found customer. 
         // cli will decide what to do with it. 
         return self.customers.get(customerid)
     }
 
-    // &self X we need mutable reference &mut self correct!
+    // revised. 
+    // &self <- WRONG, we need mutable reference &mut self.
     // read  → &self + get()
     // write → &mut self + get_mut()
     fn update_customer(&mut self, customer_id: &CustomerId, name: String, email: String) {
@@ -84,6 +90,7 @@ impl Bank {
             }
         }
     }
+
 
     // delete customer needs reference to CustomerId 
     fn delete_customer(&mut self, customer_id: &CustomerId) {
@@ -118,7 +125,7 @@ impl Bank {
     //     }
     // }
 
-    //  refactoring create_account() fn to return AccountId. 
+    // refactoring create_account() fn to return AccountId. 
     // returns &AccountId because I don't want to move accountid out of the account object.
     fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType) -> Option<AccountId> {
         match self.customers.get_mut(customer_id) {
@@ -410,12 +417,14 @@ fn main() {
         None => println!("account creation failed"),
     }
 
+    // this fn returns reference because we don't want to move the Customer object out of the bank 
     let customer = bank.get_account_owner(&AccountId("123".to_string()));
     match customer{
         Some(customer) => println!("customer name owning account id : {} is {}", "123" ,customer.name),
         None => println!("customer doesn't exists"),
     }
 
+    // returns Vec<reference to accounts> because while creating the vec to be returned, we don't want to move the values out of bank into this vec which will be returned eventually.
     let all_accounts = bank.get_all_accounts(&CustomerId("123".to_string()));
     match all_accounts {
         Some(accounts) => {

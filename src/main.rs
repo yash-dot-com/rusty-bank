@@ -367,6 +367,51 @@ impl Bank {
         }
     }
 
+    // validate amount
+    //     ↓
+    // validate account_one exists
+    //     ↓
+    // validate account_two exists
+    //     ↓
+    // validate account_one != account_two
+    //     ↓
+    // validate sufficient funds
+    //     ↓
+    // ONLY NOW mutate both accounts
+    fn transfer(&mut self, account_one: &AccountId, account_two: &AccountId, amount: Money) {
+        if amount < Money(0) {
+            println!("amount cannot be negative");
+            return;
+        }else if amount == Money(0) {
+            println!("invalid transfer");
+            return;
+        }
+
+        match self.accounts.get_mut(account_one) {
+            Some(account) => {
+                if account.balance < amount {
+                    println!("insufficient funds to transfer to another account.");
+                    return;
+                }
+                account.balance = account.balance - amount;
+            },
+            None => {
+                println!("invalid first account...");
+                return;
+            }
+        }
+
+        match self.accounts.get_mut(account_two) {
+            Some(account) => {
+                account.balance = account.balance + amount;
+            },
+            None => {
+                println!("invalid second account...");
+                return;
+            }
+        }
+    }
+
 }
 
 #[derive(Debug)]

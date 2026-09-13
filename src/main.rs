@@ -300,10 +300,54 @@ impl Bank {
             Some(account) => {
                 // this line was rejected by the compiler because, we didn't specify what Money + Money results to. 
                 // add Add trait to the Money struct.
+
+                // theres an ERROR here too. 
+                // we don't own account, we just have mutable reference to account.
+                // so doing account.balance + amount sends account.balance (Money(i64)) to add() fn that takes by value, ownerships
+                // so we need to first copy the balance out add amount to it
+                // then reassign it to account.balance
                 account.balance = account.balance + amount;
             },
             None => {
                 println!("account with id : {:?} not found!", account_id);
+            }
+        }
+    }
+
+    // withdraw fn, need to validate that amount is not > balance available in account 
+    fn withdraw(&mut self, account_id: &AccountId, amount: Money) {
+        // needed to implement PartialOrd to unlock >, <, >=, <= for Money type.
+        if amount < Money(0) {
+            println!("amount cannot be negative");
+            return;
+        }else if amount == Money(0) {
+            println!("invalid withdrawal");
+            return;
+        }
+
+        match self.accounts.get_mut(account_id) {
+            Some(account) => {
+                if amount > account.balance {
+                    println!("bro you are broke");
+                    return;
+                }
+                // ERROR : cannot move out balance (for passing to the add() fn) because account is behind a mutable reference, we don't own the account. 
+                // SOLUTION : copy the balance value out, and reassign the account.balance field after mutating it. 
+                // we can implement Copy Trait for value like balance because its simply i64. 
+                // account is a &mut Account, so we cannot move the non-Copy
+                // account.balance field out of it.
+                //
+                // account.balance - amount invokes Sub::sub(), whose `self`
+                // parameter takes ownership of the left-hand Money value.
+                //
+                // Making Money Copy allows the balance to be copied for the
+                // operation, leaving the original field in place until we
+                // assign the returned Money back to account.balance.
+                account.balance = account.balance - amount;
+                println!("amount : {:?} withdrawn successfully!", amount);
+            },
+            None => {
+                println!("account not found!");
             }
         }
     }
@@ -335,7 +379,7 @@ pub struct AccountId(String);
 #[derive(Debug, Eq, Hash, PartialEq)] 
 pub struct TransactionId(String);
 
-#[derive(Debug, Eq, Hash, PartialEq, Clone)] 
+#[derive(Debug, Eq, Hash, PartialEq, Clone, PartialOrd, Copy)] 
 pub struct Money(i64); // keeping i64 instead of f64 to avoid precision errors
 
 use std::ops::{Add,Sub, Mul};
@@ -453,6 +497,10 @@ fn main() {
                 Some(owner) => {println!("owner found : {:?}", owner.name)},
                 None => {println!("owner not found")},
             }
+
+            bank.deposit(&account_id, Money(5000));
+            bank.withdraw(&account_id, Money(500));
+            bank.withdraw(&account_id, Money(5500));
         },
 
         None => println!("account creation failed"),

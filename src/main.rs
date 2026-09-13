@@ -328,7 +328,7 @@ impl Bank {
         match self.accounts.get_mut(account_id) {
             Some(account) => {
                 if amount > account.balance {
-                    println!("bro you are broke");
+                    println!("insufficient funds for withdrawal.");
                     return;
                 }
                 // ERROR : cannot move out balance (for passing to the add() fn) because account is behind a mutable reference, we don't own the account. 
@@ -348,6 +348,21 @@ impl Bank {
             },
             None => {
                 println!("account not found!");
+            }
+        }
+    }
+
+
+    // function to retrieve account balance 
+    // readonly so we pass immutable reference of bank.
+    fn check_balance(&self, account_id: &AccountId) {
+        match self.accounts.get(account_id) {
+            Some(account) => {
+                // account exists. 
+                println!("account id : {:?} has ₹{:?} as balance", account.id, account.balance);
+            },
+            None => {
+                println!("account doesn't exists...")
             }
         }
     }
@@ -499,8 +514,11 @@ fn main() {
             }
 
             bank.deposit(&account_id, Money(5000));
+            bank.check_balance(&account_id);
             bank.withdraw(&account_id, Money(500));
+            bank.check_balance(&account_id);
             bank.withdraw(&account_id, Money(5500));
+            bank.check_balance(&account_id);
         },
 
         None => println!("account creation failed"),

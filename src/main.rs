@@ -292,6 +292,22 @@ impl Bank {
     // remove AccountId from customer's Vec
     }
 
+
+    // day 3 - implementing bank operations
+    // fn deposit 
+    fn deposit(&mut self, account_id: &AccountId, amount: Money) {
+        match self.accounts.get_mut(&account_id) {
+            Some(account) => {
+                // this line was rejected by the compiler because, we didn't specify what Money + Money results to. 
+                // add Add trait to the Money struct.
+                account.balance = account.balance + amount;
+            },
+            None => {
+                println!("account with id : {:?} not found!", account_id);
+            }
+        }
+    }
+
 }
 
 #[derive(Debug)]
@@ -318,8 +334,33 @@ pub struct CustomerId(String);
 pub struct AccountId(String);
 #[derive(Debug, Eq, Hash, PartialEq)] 
 pub struct TransactionId(String);
-#[derive(Debug, Eq, Hash, PartialEq)] 
+
+#[derive(Debug, Eq, Hash, PartialEq, Clone)] 
 pub struct Money(i64); // keeping i64 instead of f64 to avoid precision errors
+
+use std::ops::{Add,Sub, Mul};
+// implementing Add trait for Money struct 
+impl Add for Money {
+    type Output = Money;
+    // this add fn take ownership of account.balance and return Money again
+    fn add(self, rhs: Money) -> Money {
+        return Money(self.0 + rhs.0);
+    }
+}
+
+impl Sub for Money {
+    type Output = Money;
+    fn sub(self, rhs: Money) -> Money {
+        return Money(self.0 - rhs.0);
+    }
+}
+
+impl Mul for Money {
+    type Output = Money;
+    fn mul(self, rhs: Money) -> Money {
+        return Money(self.0 * rhs.0);
+    }
+}
 
 #[derive(Debug)] // derieves Debug so it can be printed 
 struct Customer {

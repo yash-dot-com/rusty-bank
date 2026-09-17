@@ -27,6 +27,8 @@ use std::{collections::HashMap};
 struct Bank {
     customers: HashMap<CustomerId, Customer>,
     accounts: HashMap<AccountId, Account>,
+    next_customer_id: u64,
+    next_account_id: u64
 }
 
 // lets implement Bank methods 
@@ -39,14 +41,20 @@ impl Bank {
         println!("bank created successfully!");
         return Bank {
             customers: HashMap::new(),
-            accounts: HashMap::new()
+            accounts: HashMap::new(),
+            next_customer_id: 1,
+            next_account_id: 1,
         };
     }
 
     // 
     fn create_customer(&mut self, name: String, email: String){ // responsible only for creation, the data input should be handled by the main function.    
-        let id: CustomerId = CustomerId("123".to_string()); // rust doesn't implicitly converts datatypes for us, so manually converted &str (reference of string baked into main program) to String (stored on heap during runtime) then into customerId.
-        let customer = Customer::new(id, name, email);
+        // let id: CustomerId = CustomerId("123".to_string()); // rust doesn't implicitly converts datatypes for us, so manually converted &str (reference of string baked into main program) to String (stored on heap during runtime) then into customerId.
+        let id = CustomerId(self.next_customer_id.to_string());
+        self.next_customer_id += 1;
+
+        // cloned the id value here to be able to use later.
+        let customer = Customer::new(id.clone(), name, email);
         
         // self.customers.insert(customer.id, customer); <- WRONG 
         // when you do customer.id -> CustomerId doesn't implement Copy trait so the value is moved out of the struct & struct has no Id.
@@ -60,8 +68,10 @@ impl Bank {
         // └──────────────────────────┘
 
         // solution, implement Copy Trait for primitive datatypes stored on stack & Clone Trait for compound types like Strings, Vectors etc.
-        let customer_id = customer.id.clone();
-        self.customers.insert(customer_id, customer);
+        // let customer_id = customer.id.clone();
+
+        // cloned the id previously to use here. 
+        self.customers.insert(id, customer);
     }
 
     // need only read access
@@ -130,7 +140,9 @@ impl Bank {
     fn create_account(&mut self, customer_id: &CustomerId, account_type: AccountType) -> Option<AccountId> {
         match self.customers.get_mut(customer_id) {
             Some(customer) => {
-                let account_id = AccountId("123".to_string());
+                // let account_id = AccountId("123".to_string());
+                let account_id = AccountId(self.next_account_id.to_string());
+                self.next_account_id += 1;
 
                 let account = Account::new(
                     account_id.clone(),
@@ -378,25 +390,99 @@ impl Bank {
     // validate sufficient funds
     //     ↓
     // ONLY NOW mutate both accounts
+    // this approach has atomicity problem, what if second account doesn't exists, account one is still not getting refunded. 
+    // fn transfer(&mut self, account_one: &AccountId, account_two: &AccountId, amount: Money) {
+    //     if amount < Money(0) {
+    //         println!("amount cannot be negative");
+    //         return;
+    //     }else if amount == Money(0) {
+    //         println!("invalid transfer");
+    //         return;
+    //     }
+
+    //     match self.accounts.get_mut(account_one) {
+    //         Some(account_one) => {
+    //             if account_one.balance < amount {
+    //                 println!("insufficient funds to transfer to another account.");
+    //                 return;
+    //             }
+    //             account_one.balance = account_one.balance - amount;
+
+    //             match self.accounts.get_mut(account_two) {
+    //                 Some(account) => {
+    //                     account.balance = account.balance + amount;
+    //                 },
+    //                 None => {
+    //                     println!("invalid second account...");
+    //                     account_one.balance = account_one.balance + amount;
+    //                     return;
+    //                 }
+    //             }
+
+    //         },
+    //         None => {
+    //             println!("invalid first account...");
+    //             return;
+    //         }
+    //     }
+    // }
+
     fn transfer(&mut self, account_one: &AccountId, account_two: &AccountId, amount: Money) {
-        if amount < Money(0) {
-            println!("amount cannot be negative");
-            return;
-        }else if amount == Money(0) {
-            println!("invalid transfer");
+        // validate first 
+        // validate account_one exists
+        // validate account_two exists
+        // make sure account_one != account_two 
+        // check account_one has enough money 
+        // only now mutate both accounts 
+
+        match self.accounts.get(account_one) {
+            Some(account_one) => {
+                match self.accounts.get(account_two) {
+                    Some(account_two) => {
+                        // need to check ids for similarity
+                        if account_one.id == account_two.id {
+                            println!("invalid transfer...");
+                            return;
+                        }
+
+                        // instead of validating again inside the mutation phase
+                        // we can validate balance here
+                        if account_one.balance < amount {
+                            println!("insufficient balance");
+                            return;
+                        }
+                    }, 
+                    None => {
+                        println!("account 2 doesn't exists");
+                        return;
+                    }
+                }
+            }, 
+            None => {
+                println!("account 1 doesn't exists");
+                return;
+            }
+        }
+
+        // the above code could've been this simple. 
+        if account_one == account_two {
+            println!("cannot transfer to the same amount");
             return;
         }
+
+        // after the initial check, we are sure that both accounts exists & are not same. 
+        // so we can proceed with normal mutation. 
 
         match self.accounts.get_mut(account_one) {
             Some(account) => {
                 if account.balance < amount {
-                    println!("insufficient funds to transfer to another account.");
+                    println!("error insufficient balance");
                     return;
                 }
                 account.balance = account.balance - amount;
             },
             None => {
-                println!("invalid first account...");
+                println!("account one doesn't exists?");
                 return;
             }
         }
@@ -404,24 +490,27 @@ impl Bank {
         match self.accounts.get_mut(account_two) {
             Some(account) => {
                 account.balance = account.balance + amount;
+                println!("amount deposite in account 2 successfully...");
             },
             None => {
-                println!("invalid second account...");
+                println!("account 2 doesn't exists!");
                 return;
             }
         }
+
+        println!("transaction successful...");
     }
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum AccountType {
     Savings,
     Current,
     Investment,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum TransactionType {
     Deposit,
     Withdrawal,
@@ -482,7 +571,7 @@ impl Customer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Account {
     id: AccountId,
     account_type: AccountType,
@@ -505,7 +594,7 @@ impl Account {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Transaction {
     id: TransactionId,
     amount: Money, 
@@ -517,82 +606,191 @@ struct Transaction {
 // to understand when to use immutable reference or mutable reference. 
 // also I need to understand how to structure a rust program / project. 
 fn main() {
+    // fixing the old spagetti tests. 
     let mut bank = Bank::new();
-    bank.create_customer("yash".to_string(), "ysonalekar@gmail.com".to_string());
-    println!("{:?}", bank.customers); 
 
-    let customerid = CustomerId("123".to_string());
-    let customer = bank.get_customer(&customerid);
-    match customer{
-        Some(customer) => println!("customer found with id : {:?} name : {}", customer.id, customer.name), // {} formatter requires the variable to implement Display Trait (learn later)
-        None => println!("customer not found"),
-    }
+    bank.create_customer(
+        "yash".to_string(),
+        "ysonalekar@gmail.com".to_string()
+    );
 
-    bank.update_customer(&customerid, "yash sonalekar".to_string(), "yashislearning@gmail.com".to_string());
-    match bank.get_customer(&customerid){
+    bank.create_customer(
+        "anushka".to_string(),
+        "anu@gmail.com".to_string(),
+    );
+
+    println!("customers after creation : ");
+    println!("{:?}", bank.customers);
+
+    let customer_id_1 = CustomerId("1".to_string());
+    let customer_id_2 = CustomerId("2".to_string());
+
+    match bank.get_customer(&customer_id_1) {
         Some(customer) => {
-            println!("customer details updated!");
-            println!("name : {}", customer.name);
-            println!("email : {}", customer.email);
+            println!("customer found {:?} | {} | {} ", customer.id, customer.name, customer.email);
         },
-        None => println!("didn't find the customer with id : {:?}", customerid)
+        None => {
+            println!("ERROR : customer 1 was not created");
+        }
     }
 
-    // create account for customer 
-    // Account -> I own the account 
-    // &Account -> I borrow the account 
-    // T -> the thing itself 
-    // &T -> temporary borrowed reference to that thing.
-    let account_id_1 = bank.create_account(&customerid, AccountType::Savings);
-    match account_id_1 {
-        Some(account_id) => {
-            println!("account created : {:?}", account_id);
-
-            match bank.get_account(&account_id) {
-                Some(account) => {println!("account found : {:?}", account.id)},
-                None => println!("account not found"),
-            }
-
-            match bank.get_account_owner(&account_id) {
-                Some(owner) => {println!("owner found : {:?}", owner.name)},
-                None => {println!("owner not found")},
-            }
-
-            bank.deposit(&account_id, Money(5000));
-            bank.check_balance(&account_id);
-            bank.withdraw(&account_id, Money(500));
-            bank.check_balance(&account_id);
-            bank.withdraw(&account_id, Money(5500));
-            bank.check_balance(&account_id);
+    match bank.get_customer(&customer_id_2) {
+        Some(customer) => {
+            println!("customer found {:?} | {} | {} ", customer.id, customer.name, customer.email);
         },
-
-        None => println!("account creation failed"),
+        None => {
+            println!("ERROR : customer 2 was not created");
+        }
     }
 
-    // this fn returns reference because we don't want to move the Customer object out of the bank 
-    let customer = bank.get_account_owner(&AccountId("123".to_string()));
-    match customer{
-        Some(customer) => println!("customer name owning account id : {} is {}", "123" ,customer.name),
-        None => println!("customer doesn't exists"),
+    // update customer 
+    bank.update_customer(
+        &customer_id_1,
+        "yash sonalekar".to_string(),
+        "yashislearning@gmail.com".to_string(),
+    );
+
+
+    // verify update 
+    match bank.get_customer(&customer_id_2) {
+        Some(customer)=> {
+            println!("customer after update : {} | {}", customer.name, customer.email);
+        },
+        None => {
+            println!("ERROR : customer disappeared after update")
+        }
     }
 
-    // returns Vec<reference to accounts> because while creating the vec to be returned, we don't want to move the values out of bank into this vec which will be returned eventually.
-    let all_accounts = bank.get_all_accounts(&CustomerId("123".to_string()));
-    match all_accounts {
+    // create accounts 
+
+    let acc_one = match bank.create_account(&customer_id_1, AccountType::Investment) {
+        Some(acc_id) => {
+            println!("account 1 created : {:?}", acc_id);
+            // returning created acc_id
+            acc_id
+        },
+        None => {
+            println!("ERROR : couldn't create account for customer one");
+            return;
+        }
+    };
+
+    let acc_two = match bank.create_account(&customer_id_2, AccountType::Savings) {
+        Some(acc_id) => {
+            println!("account 2 created : {:?}", acc_id);
+            acc_id
+        },
+        None => {
+            println!("ERROR : couldn't create account for customer 2");
+            return;
+        }
+    };
+
+    // verify accounts exists 
+    match bank.get_account(&acc_one) {
+        Some(acc) => {
+            println!("account one exists! : {:?}", acc.id);
+        },
+        None => {
+            println!("ERROR : account one doesn't exists");
+            return;
+        }
+    }
+
+    match bank.get_account(&acc_two) {
+        Some(acc) => {
+            println!("account two exists! : {:?}", acc.id);
+        },
+        None => {
+            println!("ERROR : account two doesn't exists");
+            return;
+        }
+    }
+
+    // verify account owners 
+
+    match bank.get_account_owner(&acc_one) {
+        Some(owner) => {
+            println!(
+                "account {:?} belongs to {}",
+                acc_one,
+                owner.name
+            );
+        },
+        None => {
+            println!("ERROR : couldn't find owner of account one");
+            return;
+        }
+    }
+
+    match bank.get_account_owner(&acc_two) {
+        Some(owner) => {
+            println!(
+                "account {:?} belongs to {}",
+                acc_one,
+                owner.name
+            );
+        },
+        None => {
+            println!("ERROR : couldn't find owner of account 2")
+        }
+    }
+
+    // deposits, withdrawals, transfers & check balance
+    bank.deposit(&acc_one, Money(100_000));
+
+    bank.check_balance(&acc_one);
+
+    bank.withdraw(&acc_one, Money(50_000));
+
+    bank.check_balance(&acc_one);
+
+    bank.transfer(&acc_one, &acc_two, Money(30_000));
+
+    bank.check_balance(&acc_one);
+    bank.check_balance(&acc_two);
+
+    // get all accounts 
+
+    match bank.get_all_accounts(&customer_id_1) {
         Some(accounts) => {
             for account in accounts {
                 println!("{:?}", account);
             }
-        }, 
-        None => println!("No accounts found!"),
+        },
+        None => {
+            println!("ERROR : customer 1 not found");
+        }
     }
 
-    bank.close_account(&AccountId("123".to_string()));
+    // close account 
+    bank.close_account(&acc_one);
 
-    bank.delete_customer(&customerid);
-    // this not required because HashMap.remove() throws data, so we can own it since its not owned by the hashmap anymore and consume, discard it.
-    // match bank.get_customer(&customerid){
-    //     Some(customer) => println!("customer not deleted! {}", customer.name),
-    //     None => println!("customer not found!"),
-    // }
+    // verify 
+    match bank.get_account(&acc_one) {
+        Some(_) => {
+            println!("ERROR : account still exists");
+        },
+        None => {
+            println!("account successfully closed");
+        }
+    }
+
+    // delete customer 
+
+    bank.delete_customer(&customer_id_1);
+
+    match bank.get_customer(&customer_id_1) {
+        Some(customer) => {
+            println!(
+                "ERROR : customer still exists : {:?}",
+                customer
+            );
+        },
+        None => {
+            println!("cutomer successfully deleted");
+        }
+    }
+
+    println!("TESTS COMPLETED");
 }

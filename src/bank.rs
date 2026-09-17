@@ -1,5 +1,5 @@
 // bank --owns-- customer --owns-- accounts (saving, current, investments) --owns-- transactions
-use std::collections::HashMap;
+use std::{collections::HashMap};
 use crate::models::{CustomerId, Customer, Account, AccountId, AccountType, Money};
 
 // mutable reference of bank will allow mutable access to all the variables owned by it.
@@ -8,6 +8,14 @@ pub struct Bank {
     pub accounts: HashMap<AccountId, Account>,
     next_customer_id: u64,
     next_account_id: u64,
+}
+
+enum BankError {
+    InsufficientFunds,
+    CustomerDoesNotExists,
+    CustomerHasActiveAccounts,
+    FailedToCreateAccount,
+    AccountNotFound,
 }
 
 // lets implement Bank methods
@@ -27,8 +35,8 @@ impl Bank {
         };
     }
 
-    //
-    pub fn create_customer(&mut self, name: String, email: String) {
+    // ERROR : failed to create customer
+    pub fn create_customer(&mut self, name: String, email: String) -> Option<Customer> {
         // responsible only for creation, the data input should be handled by the main function.
         // let id: CustomerId = CustomerId("123".to_string()); // rust doesn't implicitly converts datatypes for us, so manually converted &str (reference of string baked into main program) to String (stored on heap during runtime) then into customerId.
         let id = CustomerId(self.next_customer_id.to_string());
@@ -52,22 +60,26 @@ impl Bank {
         // let customer_id = customer.id.clone();
 
         // cloned the id previously to use here.
-        self.customers.insert(id, customer);
+        self.customers.insert(id, customer)
     }
 
     // need only read access
-    pub fn get_customer(&self, customerid: &CustomerId) -> Option<&Customer> {
+    // ERROR : customer doesn't exists 
+    pub fn get_customer(&self, customerid: &CustomerId) -> Result<&Customer, BankError> {
         // functions takes ownership of value if not passed with reference, here we take CustomerId as reference because we only want to look it up
         // refactor, we just want to return the reference to the found customer.
         // cli will decide what to do with it.
-        return self.customers.get(customerid);
+        match self.customers.get(customerid) {
+            Some(customer) => Ok(&customer),
+            None => Err(BankError::CustomerDoesNotExists)
+        }
     }
 
     // revised.
     // &self <- WRONG, we need mutable reference &mut self.
     // read  → &self + get()
     // write → &mut self + get_mut()
-    pub fn update_customer(&mut self, customer_id: &CustomerId, name: String, email: String) {
+    pub fn update_customer(&mut self, customer_id: &CustomerId, name: String, email: String) -> Result<(), BankError> {
         // we need mutable reference to the customer object to actually change its content.
         // let mut customer = self.customers.get(customer_id); // <- WRONG .get return immutable reference & we need &mut reference.
         let customer = self.customers.get_mut(customer_id);
@@ -75,22 +87,62 @@ impl Bank {
             Some(customer) => {
                 customer.name = name;
                 customer.email = email;
+                // we produce () empty tuple for fn that returns nothing. 
+                Ok(())
             }
 
             None => {
-                println!("customer with id : {:?} doesn't exists", customer_id);
+                Err(BankError::CustomerDoesNotExists)
             }
         }
     }
 
     // delete customer needs reference to CustomerId
-    pub fn delete_customer(&mut self, customer_id: &CustomerId) {
+    // ERROR : either returns () or BankError when customer doesn't exists, can't delete something that doesn't exist
+    pub fn delete_customer(&mut self, customer_id: &CustomerId) -> Result<(), BankError> {
         // self.customers.remove(customer_id); // .remove() returns Option<V> containing removed value if the key existed in the map.
         // notice .remove returns Option<V> not Option<&V> that means its throwing away the data, removing it from hashmap and giving us the ownership of removed data
-        match self.customers.remove(customer_id) {
-            Some(customer) => println!("deleted customer : {:?}", customer.id),
-            None => println!("couldn't find the user with id : {:?}", customer_id),
+
+        match self.get_customer(customer_id) {
+            Ok(customer) => {
+                if !customer.accounts.is_empty() {
+                    Err(BankError::CustomerHasActiveAccounts)
+                } else {
+                    self.customers.remove(customer_id);
+                    Ok(())
+                }
+            }, 
+
+            // get customer already gives an error return it only
+            Err(error) => {
+                Err(error)
+            }
         }
+
+        // the above code can be written as 
+        // let customer = self.get_customer(customer_id)?
+        // if !customer.accounts.is_empty() {
+        //     Err(BankError::CustomerHasActiveAccounts)
+        // } else {
+        //     self.customers.remove(&customer.id);
+        //     Ok(())
+        // }
+
+        // match self.customers.remove(customer_id) {
+        //     Some(customer) => {
+        //         // while removing a customer, we also remove all of its accounts from bank.
+        //         // for accounts in customer.accounts {
+        //         //     self.accounts.remove(&accounts);
+        //         // }
+        //         // design change, if a customer has active accounts, can't delete it. first withdraw balance, then delete accounts then delete customer
+        //         if !customer.accounts.is_empty() {
+        //             Err(BankError::CustomerHasActiveAccounts)
+        //         } else {
+        //             Ok(())
+        //         }
+        //     }
+        //     None => Err(BankError::CustomerDoesNotExists)
+        // }
     }
 
     // customer CRUD done.
@@ -122,7 +174,7 @@ impl Bank {
         &mut self,
         customer_id: &CustomerId,
         account_type: AccountType,
-    ) -> Option<AccountId> {
+    ) -> Result<AccountId, BankError> {
         match self.customers.get_mut(customer_id) {
             Some(customer) => {
                 // let account_id = AccountId("123".to_string());
@@ -136,7 +188,7 @@ impl Bank {
                 let returned_id = account_id.clone();
 
                 self.accounts.insert(account_id, account);
-                Some(returned_id)
+                Ok(returned_id)
 
                 // ownership flow
                 //                     ┌── clone → Account.id
@@ -148,13 +200,12 @@ impl Bank {
                 //                     └── move → Bank.accounts HashMap key
             }
             None => {
-                println!("customer doesn't exists, account cannot be created.");
-                None
+                Err(BankError::CustomerDoesNotExists)
             }
         }
     }
 
-    pub fn get_account(&self, account_id: &AccountId) -> Option<&Account> {
+    pub fn get_account(&self, account_id: &AccountId) -> Result<&Account, BankError> {
         // check if account exists, return &Account
         // else return None
         // match self.accounts.get(account_id) {
@@ -163,48 +214,60 @@ impl Bank {
         // }
 
         // also the hashmap returns Option<&Account> so we can just put
-        self.accounts.get(account_id)
+        match self.accounts.get(account_id) {
+            Some(account) => {
+                Ok(account)
+            },
+            None => Err(BankError::AccountNotFound)
+        }
+
     }
 
-    pub fn get_account_owner(&self, account_id: &AccountId) -> Option<&Customer> {
+    // either returns reference to customer or BankError saying customer doesn't exists.
+    pub fn get_account_owner(&self, account_id: &AccountId) -> Result<&Customer, BankError> {
         // check if account exists
         // if yes then return its customer
         // if no then return none.
         match self.accounts.get(account_id) {
             Some(account) => match self.customers.get(&account.owner_id) {
-                Some(owner) => Some(owner),
-                None => None,
+                Some(owner) => Ok(owner),
+                None => Err(BankError::CustomerDoesNotExists),
             },
-            None => None,
+            None => Err(BankError::AccountNotFound),
         }
     }
 
     // fn to list customer's all accounts must return Option<Vec<Account>>
-    pub fn get_all_accounts(&self, customer_id: &CustomerId) -> Option<Vec<&Account>> {
+    pub fn get_all_accounts(&self, customer_id: &CustomerId) -> Result<Vec<&Account>, BankError> {
         // bank owns account
         // get_all_accounts() -> borrows accounts -> Vec<&Account>
         // cli iterates and prints
-        match self.customers.get(customer_id) {
-            Some(customer) => {
+
+        match self.get_customer(customer_id) {
+            Ok(customer) => {
                 println!("customer found: {}", customer.name);
                 let mut accounts = Vec::new();
 
                 // if no account id we return empty vector
 
                 for account_id in &customer.accounts {
-                    match self.accounts.get(account_id) {
-                        Some(account) => accounts.push(account),
-                        None => {}
+                    // alternate way : ?
+                    // let account = self.get_account(account_id)?;
+                    // accounts.push(account);
+
+                    match self.get_account(account_id) {
+                        Ok(account) => accounts.push(account),
+                        Err(e) => return Err(e) // i am inside for loop so need to explicitly return Error.
                     }
                 }
                 // return Some(accounts) after constructing the vector
-                Some(accounts)
-            }
-            None => None,
+                Ok(accounts)
+            },
+            Err(error) => Err(error)
         }
     }
 
-    pub fn close_account(&mut self, account_id: &AccountId) {
+    pub fn close_account(&mut self, account_id: &AccountId) -> Result<(), BankError> {
         // first lets check if account exists in the bank
         // if yes then lets remove it from bank
         // then we will proceed to remove from it from owner's account id vector.
@@ -249,6 +312,16 @@ impl Bank {
         // find customer
         //     ↓
         // retain account_id
+
+        // flaws in current code, the account is removed no matter if it results in error or success. 
+        // we are already removing the account 
+
+        // 1. Does account exist?
+        // 2. Who owns it?
+        // 3. Does owner exist?
+        // 4. Only then remove account
+        // 5. Remove account ID from owner
+        // 6. Ok(())
         match self.accounts.remove(account_id) {
             Some(account) => {
                 let owner_id = account.owner_id;
@@ -256,14 +329,17 @@ impl Bank {
                     Some(owner) => {
                         owner.accounts.retain(|id| id != account_id);
                         println!("account closed successfully!");
+                        Ok(())
                     }
                     None => {
                         println!("owner not found!");
+                        Err(BankError::CustomerDoesNotExists)
                     }
                 }
             }
             None => {
                 println!("account not found!");
+                Err(BankError::AccountNotFound)
             }
         }
         // how its working :-

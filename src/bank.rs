@@ -1,6 +1,6 @@
 // bank --owns-- customer --owns-- accounts (saving, current, investments) --owns-- transactions
-use std::{collections::HashMap};
-use crate::models::{CustomerId, Customer, Account, AccountId, AccountType, Money};
+use crate::models::{Account, AccountId, AccountType, Customer, CustomerId, Money};
+use std::collections::HashMap;
 
 // mutable reference of bank will allow mutable access to all the variables owned by it.
 pub struct Bank {
@@ -10,12 +10,15 @@ pub struct Bank {
     next_account_id: u64,
 }
 
-enum BankError {
+#[derive(Debug)]
+pub enum BankError {
     InsufficientFunds,
     CustomerDoesNotExists,
     CustomerHasActiveAccounts,
     FailedToCreateAccount,
     AccountNotFound,
+    InvalidTransferAmount,
+    InvalidTransferAccount,
 }
 
 // lets implement Bank methods
@@ -64,14 +67,14 @@ impl Bank {
     }
 
     // need only read access
-    // ERROR : customer doesn't exists 
+    // ERROR : customer doesn't exists
     pub fn get_customer(&self, customerid: &CustomerId) -> Result<&Customer, BankError> {
         // functions takes ownership of value if not passed with reference, here we take CustomerId as reference because we only want to look it up
         // refactor, we just want to return the reference to the found customer.
         // cli will decide what to do with it.
         match self.customers.get(customerid) {
             Some(customer) => Ok(&customer),
-            None => Err(BankError::CustomerDoesNotExists)
+            None => Err(BankError::CustomerDoesNotExists),
         }
     }
 
@@ -79,7 +82,12 @@ impl Bank {
     // &self <- WRONG, we need mutable reference &mut self.
     // read  → &self + get()
     // write → &mut self + get_mut()
-    pub fn update_customer(&mut self, customer_id: &CustomerId, name: String, email: String) -> Result<(), BankError> {
+    pub fn update_customer(
+        &mut self,
+        customer_id: &CustomerId,
+        name: String,
+        email: String,
+    ) -> Result<(), BankError> {
         // we need mutable reference to the customer object to actually change its content.
         // let mut customer = self.customers.get(customer_id); // <- WRONG .get return immutable reference & we need &mut reference.
         let customer = self.customers.get_mut(customer_id);
@@ -87,13 +95,11 @@ impl Bank {
             Some(customer) => {
                 customer.name = name;
                 customer.email = email;
-                // we produce () empty tuple for fn that returns nothing. 
+                // we produce () empty tuple for fn that returns nothing.
                 Ok(())
             }
 
-            None => {
-                Err(BankError::CustomerDoesNotExists)
-            }
+            None => Err(BankError::CustomerDoesNotExists),
         }
     }
 
@@ -111,15 +117,13 @@ impl Bank {
                     self.customers.remove(customer_id);
                     Ok(())
                 }
-            }, 
+            }
 
             // get customer already gives an error return it only
-            Err(error) => {
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
 
-        // the above code can be written as 
+        // the above code can be written as
         // let customer = self.get_customer(customer_id)?
         // if !customer.accounts.is_empty() {
         //     Err(BankError::CustomerHasActiveAccounts)
@@ -199,9 +203,7 @@ impl Bank {
                 //                     │
                 //                     └── move → Bank.accounts HashMap key
             }
-            None => {
-                Err(BankError::CustomerDoesNotExists)
-            }
+            None => Err(BankError::CustomerDoesNotExists),
         }
     }
 
@@ -215,12 +217,9 @@ impl Bank {
 
         // also the hashmap returns Option<&Account> so we can just put
         match self.accounts.get(account_id) {
-            Some(account) => {
-                Ok(account)
-            },
-            None => Err(BankError::AccountNotFound)
+            Some(account) => Ok(account),
+            None => Err(BankError::AccountNotFound),
         }
-
     }
 
     // either returns reference to customer or BankError saying customer doesn't exists.
@@ -257,13 +256,13 @@ impl Bank {
 
                     match self.get_account(account_id) {
                         Ok(account) => accounts.push(account),
-                        Err(e) => return Err(e) // i am inside for loop so need to explicitly return Error.
+                        Err(e) => return Err(e), // i am inside for loop so need to explicitly return Error.
                     }
                 }
                 // return Some(accounts) after constructing the vector
                 Ok(accounts)
-            },
-            Err(error) => Err(error)
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -313,8 +312,8 @@ impl Bank {
         //     ↓
         // retain account_id
 
-        // flaws in current code, the account is removed no matter if it results in error or success. 
-        // we are already removing the account 
+        // flaws in current code, the account is removed no matter if it results in error or success.
+        // we are already removing the account
 
         // 1. Does account exist?
         // 2. Who owns it?
@@ -419,7 +418,7 @@ impl Bank {
 
     // function to retrieve account balance
     // readonly so we pass immutable reference of bank.
-    pub fn check_balance(&self, account_id: &AccountId) {
+    pub fn check_balance(&self, account_id: &AccountId) -> Result<(), BankError> {
         match self.accounts.get(account_id) {
             Some(account) => {
                 // account exists.
@@ -427,10 +426,9 @@ impl Bank {
                     "account id : {:?} has ₹{:?} as balance",
                     account.id, account.balance
                 );
+                Ok(())
             }
-            None => {
-                println!("account doesn't exists...")
-            }
+            None => Err(BankError::AccountNotFound),
         }
     }
 
@@ -482,84 +480,143 @@ impl Bank {
     //     }
     // }
 
-    // pattern
-    pub fn transfer(&mut self, account_one: &AccountId, account_two: &AccountId, amount: Money) {
-        // validate first
-        // validate account_one exists
-        // validate account_two exists
-        // make sure account_one != account_two
-        // check account_one has enough money
-        // only now mutate both accounts
+    // // pattern
+    // pub fn transfer(&mut self, account_one: &AccountId, account_two: &AccountId, amount: Money) -> Result<(), BankError> {
+    //     // validate first
+    //     // validate account_one exists
+    //     // validate account_two exists
+    //     // make sure account_one != account_two
+    //     // check account_one has enough money
+    //     // only now mutate both accounts
 
+    //     if amount <= Money(0) {
+    //         println!("invalid amount");
+    //         return Err(BankError::InvalidTransferAmount)
+    //     }
+
+    //     match self.accounts.get(account_one) {
+    //         Some(account_one) => {
+    //             match self.accounts.get(account_two) {
+    //                 Some(account_two) => {
+    //                     // need to check ids for similarity
+    //                     if account_one.id == account_two.id {
+    //                         println!("invalid transfer...");
+    //                         return Ok(())
+    //                     }
+
+    //                     // instead of validating again inside the mutation phase
+    //                     // we can validate balance here
+    //                     if account_one.balance < amount {
+    //                         return Err(BankError::InsufficientFunds)
+    //                     }
+    //                 }
+    //                 None => {
+    //                     println!("account 2 doesn't exists");
+    //                     return Err(BankError::AccountNotFound)
+    //                 }
+    //             }
+    //         }
+    //         None => {
+    //             println!("account 1 doesn't exists");
+    //             return Err(BankError::AccountNotFound)
+    //         }
+    //     }
+
+    //     // the above code could've been this simple.
+    //     if account_one == account_two {
+    //         println!("cannot transfer to the same amount");
+    //         return Err(BankError::InvalidTransferAccount)
+    //     }
+
+    //     // after the initial check, we are sure that both accounts exists & are not same.
+    //     // so we can proceed with normal mutation.
+
+    //     match self.accounts.get_mut(account_one) {
+    //         Some(account) => {
+    //             if account.balance < amount {
+    //                 println!("error insufficient balance");
+    //                 return Err(BankError::InsufficientFunds)
+    //             }
+    //             account.balance = account.balance - amount;
+    //         }
+    //         None => {
+    //             println!("account one doesn't exists?");
+    //             return Err(BankError::AccountNotFound)
+    //         }
+    //     }
+
+    //     match self.accounts.get_mut(account_two) {
+    //         Some(account) => {
+    //             account.balance = account.balance + amount;
+    //             println!("amount deposite in account 2 successfully...");
+    //             return Ok(())
+    //         }
+    //         None => {
+    //             println!("account 2 doesn't exists!");
+    //             return Err(BankError::AccountNotFound)
+    //         }
+    //     }
+
+    //     println!("transaction successful...");
+    //     Ok(())
+    // }
+
+    pub fn transfer(
+        &mut self,
+        account_one: &AccountId,
+        account_two: &AccountId,
+        amount: Money,
+    ) -> Result<(), BankError> {
+        // =========================
+        // VALIDATION PHASE
+        // =========================
+
+        // 1. Validate amount
         if amount <= Money(0) {
-            println!("invalid amount");
-            return;
+            return Err(BankError::InvalidTransferAmount);
         }
 
-        match self.accounts.get(account_one) {
-            Some(account_one) => {
-                match self.accounts.get(account_two) {
-                    Some(account_two) => {
-                        // need to check ids for similarity
-                        if account_one.id == account_two.id {
-                            println!("invalid transfer...");
-                            return;
-                        }
-
-                        // instead of validating again inside the mutation phase
-                        // we can validate balance here
-                        if account_one.balance < amount {
-                            println!("insufficient balance");
-                            return;
-                        }
-                    }
-                    None => {
-                        println!("account 2 doesn't exists");
-                        return;
-                    }
-                }
-            }
-            None => {
-                println!("account 1 doesn't exists");
-                return;
-            }
-        }
-
-        // the above code could've been this simple.
+        // 2. Cannot transfer to the same account
         if account_one == account_two {
-            println!("cannot transfer to the same amount");
-            return;
+            return Err(BankError::InvalidTransferAccount);
         }
 
-        // after the initial check, we are sure that both accounts exists & are not same.
-        // so we can proceed with normal mutation.
+        // 3. Validate source account exists
+        let source = match self.accounts.get(account_one) {
+            Some(account) => account,
+            None => return Err(BankError::AccountNotFound),
+        };
 
-        match self.accounts.get_mut(account_one) {
-            Some(account) => {
-                if account.balance < amount {
-                    println!("error insufficient balance");
-                    return;
-                }
-                account.balance = account.balance - amount;
-            }
-            None => {
-                println!("account one doesn't exists?");
-                return;
-            }
+        // 4. Validate destination account exists
+        match self.accounts.get(account_two) {
+            Some(_) => {}
+            None => return Err(BankError::AccountNotFound),
         }
 
-        match self.accounts.get_mut(account_two) {
-            Some(account) => {
-                account.balance = account.balance + amount;
-                println!("amount deposite in account 2 successfully...");
-            }
-            None => {
-                println!("account 2 doesn't exists!");
-                return;
-            }
+        // 5. Validate sufficient balance
+        if source.balance < amount {
+            return Err(BankError::InsufficientFunds);
         }
 
-        println!("transaction successful...");
+        // =========================
+        // MUTATION PHASE
+        // =========================
+
+        let source = self
+            .accounts
+            .get_mut(account_one)
+            .expect("source account was validated above");
+
+        source.balance = source.balance - amount;
+
+        let destination = self
+            .accounts
+            .get_mut(account_two)
+            .expect("destination account was validated above");
+
+        destination.balance = destination.balance + amount;
+
+        Ok(())
     }
 
     // fn transfer_2(&mut self, account_one: &AccountId, account_two: &AccountId, amount: Money) {

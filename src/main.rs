@@ -705,91 +705,98 @@ fn main() {
     let customer_id_2 = CustomerId("2".to_string());
 
     match bank.get_customer(&customer_id_1) {
-        Some(customer) => {
+        Ok(customer) => {
             println!(
                 "customer found {:?} | {} | {} ",
                 customer.id, customer.name, customer.email
             );
         }
-        None => {
-            println!("ERROR : customer 1 was not created");
+        Err(e) => {
+            println!("ERROR : {:?}", e);
         }
     }
 
     match bank.get_customer(&customer_id_2) {
-        Some(customer) => {
+        Ok(customer) => {
             println!(
                 "customer found {:?} | {} | {} ",
                 customer.id, customer.name, customer.email
             );
         }
-        None => {
-            println!("ERROR : customer 2 was not created");
+        Err(e) => {
+            println!("ERROR : {:?}", e);
         }
     }
 
     // update customer
-    bank.update_customer(
+    match bank.update_customer(
         &customer_id_1,
         "yash sonalekar".to_string(),
         "yashislearning@gmail.com".to_string(),
-    );
+    ) {
+        Ok(()) => {
+            println!("Customer Updated Successfully");
+        },
+        Err(e) => {
+            println!("ERROR : {:?}", e);
+        }
+    }
 
     // verify update
     match bank.get_customer(&customer_id_2) {
-        Some(customer) => {
+        Ok(customer) => {
             println!(
                 "customer after update : {} | {}",
                 customer.name, customer.email
             );
         }
-        None => {
-            println!("ERROR : customer disappeared after update")
+        Err(e) => {
+            println!("ERROR : {:?}",e);
         }
     }
 
     // create accounts
 
     let acc_one = match bank.create_account(&customer_id_1, AccountType::Investment) {
-        Some(acc_id) => {
+        Ok(acc_id) => {
             println!("account 1 created : {:?}", acc_id);
             // returning created acc_id
             acc_id
         }
-        None => {
-            println!("ERROR : couldn't create account for customer one");
+        Err(e) => {
+            println!("ERROR : {:?}", e);
             return;
         }
     };
 
     let acc_two = match bank.create_account(&customer_id_2, AccountType::Savings) {
-        Some(acc_id) => {
+        Ok(acc_id) => {
             println!("account 2 created : {:?}", acc_id);
             acc_id
         }
-        None => {
-            println!("ERROR : couldn't create account for customer 2");
+        Err(e) => {
+            println!("ERROR : {:?}", e);
             return;
         }
     };
 
     // verify accounts exists
     match bank.get_account(&acc_one) {
-        Some(acc) => {
+        Ok(acc) => {
             println!("account one exists! : {:?}", acc.id);
         }
-        None => {
-            println!("ERROR : account one doesn't exists");
+        Err(e) => {
+            println!("ERROR : {:?}", e);
             return;
         }
     }
 
     match bank.get_account(&acc_two) {
-        Some(acc) => {
+        Ok(acc) => {
             println!("account two exists! : {:?}", acc.id);
         }
-        None => {
-            println!("ERROR : account two doesn't exists");
+        Err(e) => {
+            println!("ERROR : account two doesn't exists : {:?}", e);
             return;
         }
     }
@@ -797,21 +804,21 @@ fn main() {
     // verify account owners
 
     match bank.get_account_owner(&acc_one) {
-        Some(owner) => {
+        Ok(owner) => {
             println!("account {:?} belongs to {}", acc_one, owner.name);
         }
-        None => {
-            println!("ERROR : couldn't find owner of account one");
+        Err(e) => {
+            println!("ERROR : couldn't find owner of account one : {:?}", e);
             return;
         }
     }
 
     match bank.get_account_owner(&acc_two) {
-        Some(owner) => {
+        Ok(owner) => {
             println!("account {:?} belongs to {}", acc_one, owner.name);
         }
-        None => {
-            println!("ERROR : couldn't find owner of account 2")
+        Err(e) => {
+            println!("ERROR : couldn't find owner of account 2 : {:?}", e);
         }
     }
 
@@ -832,39 +839,53 @@ fn main() {
     // get all accounts
 
     match bank.get_all_accounts(&customer_id_1) {
-        Some(accounts) => {
+        Ok(accounts) => {
             for account in accounts {
                 println!("{:?}", account);
             }
         }
-        None => {
-            println!("ERROR : customer 1 not found");
+        Err(e) => {
+            println!("ERROR : customer 1 not found : {:?}", e);
         }
     }
 
     // close account
-    bank.close_account(&acc_one);
+    match bank.close_account(&acc_one) {
+        Ok(()) => {
+            println!("account closed successfully");
+        }
+        Err(e) => {
+            println!("ERROR : {:?}", e);
+        }
+    }
 
     // verify
     match bank.get_account(&acc_one) {
-        Some(_) => {
-            println!("ERROR : account still exists");
-        }
-        None => {
-            println!("account successfully closed");
+        Ok(account) => {
+            println!("account still exists with acc. no : {:?}", account.id);
+        }, 
+        Err(e) => {
+            println!("account closed successfully : {:?}", e);
         }
     }
 
     // delete customer
 
-    bank.delete_customer(&customer_id_1);
+    match bank.delete_customer(&customer_id_1) {
+        Ok(()) => {
+            println!("customer deleted successfully");
+        }
+        Err(e) => {
+            println!("ERROR : {:?}", e);
+        }
+    }
 
     match bank.get_customer(&customer_id_1) {
-        Some(customer) => {
+        Ok(customer) => {
             println!("ERROR : customer still exists : {:?}", customer);
         }
-        None => {
-            println!("cutomer successfully deleted");
+        Err(e) => {
+            println!("cutomer successfully deleted : {:?}", e);
         }
     }
 

@@ -70,7 +70,7 @@ impl Bank {
         // let customer_id = customer.id.clone();
 
         // cloned the id previously to use here.
-        self.customers.insert(id, customer)
+        self.customers.insert(customer.id.clone(), customer)
     }
 
     // need only read access

@@ -687,8 +687,58 @@ mod models;
 use models::{CustomerId, AccountType, Money};
 use bank::Bank;
 
+use crate::bank::BankError;
+
 // modules's item are private by default, 
 // use "pub" keyword to make it accessible across files.
+
+// trying to learn how to unit test in rust.
+#[test]
+fn random_test() {
+    let mystring = "123".to_string();
+    assert!("123".to_string() == mystring);
+    assert_eq!("yash", "yash");
+    assert_ne!("yash", "Yash");
+}
+
+#[test]
+// way to write tests 
+// Arrange 
+// Act 
+// Assert
+// fn withdraw_decreases_balance() {
+//     // Arrange
+//     let mut bank = Bank::new();
+
+//     let customer = bank
+//         .create_customer(
+//             "yash".to_string(),
+//             "y@gmail.com".to_string(),
+//         )
+//         .unwrap();
+
+//     let account_id = bank
+//         .create_account(
+//             &customer.id,
+//             AccountType::Current,
+//         )
+//         .unwrap();
+
+//     // Give the account some money first
+//     bank.deposit(&account_id, Money(50_000))
+//         .unwrap();
+
+//     // Act
+//     bank.withdraw(&account_id, Money(20_000))
+//         .unwrap();
+
+//     // Assert
+//     let account = bank
+//         .get_account(&account_id)
+//         .unwrap();
+
+//     assert_eq!(account.balance, Money(30_000));
+// }
 
 fn main() {
     // fixing the old spagetti tests.

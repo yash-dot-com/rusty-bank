@@ -823,18 +823,21 @@ fn main() {
     }
 
     // deposits, withdrawals, transfers & check balance
-    bank.deposit(&acc_one, Money(100_000));
+    let _ = bank.deposit(&acc_one, Money(100_000));
 
-    bank.check_balance(&acc_one);
+    let _ = bank.check_balance(&acc_one);
 
-    bank.withdraw(&acc_one, Money(50_000));
+    let _ = bank.withdraw(&acc_one, Money(50_000));
 
-    bank.check_balance(&acc_one);
+    let _ = bank.check_balance(&acc_one);
 
-    bank.transfer(&acc_one, &acc_two, Money(30_000));
+    let _ = bank.transfer(&acc_one, &acc_two, Money(30_000));
 
-    bank.check_balance(&acc_one);
-    bank.check_balance(&acc_two);
+    let _ = bank.check_balance(&acc_one);
+    let _ = bank.check_balance(&acc_two);
+
+    let _ = bank.get_transaction_history(&acc_one);
+    let _ = bank.get_transaction_history(&acc_two);
 
     // get all accounts
 

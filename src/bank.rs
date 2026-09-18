@@ -1,5 +1,11 @@
 // bank --owns-- customer --owns-- accounts (saving, current, investments) --owns-- transactions
-use crate::models::{Account, AccountId, AccountType, Customer, CustomerId, Money};
+use crate::{
+    bank::BankError::InvalidTransferAmount,
+    models::{
+        Account, AccountId, AccountType, Customer, CustomerId, Money, Transaction,
+        TransactionType::{self, TransferIn, TransferOut},
+    },
+};
 use std::collections::HashMap;
 
 // mutable reference of bank will allow mutable access to all the variables owned by it.
@@ -19,6 +25,7 @@ pub enum BankError {
     AccountNotFound,
     InvalidTransferAmount,
     InvalidTransferAccount,
+    InvalidAmount,
 }
 
 // lets implement Bank methods
@@ -359,7 +366,7 @@ impl Bank {
 
     // day 3 - implementing bank operations
     // fn deposit
-    pub fn deposit(&mut self, account_id: &AccountId, amount: Money) {
+    pub fn deposit(&mut self, account_id: &AccountId, amount: Money) -> Result<(), BankError> {
         match self.accounts.get_mut(&account_id) {
             Some(account) => {
                 // this line was rejected by the compiler because, we didn't specify what Money + Money results to.
@@ -371,29 +378,28 @@ impl Bank {
                 // so we need to first copy the balance out add amount to it
                 // then reassign it to account.balance
                 account.balance = account.balance + amount;
+                account
+                    .transactions
+                    .push(TransferIn(account.id.clone(), amount));
+                Ok(())
             }
-            None => {
-                println!("account with id : {:?} not found!", account_id);
-            }
+            None => Err(BankError::AccountNotFound),
         }
     }
 
     // withdraw fn, need to validate that amount is not > balance available in account
-    pub fn withdraw(&mut self, account_id: &AccountId, amount: Money) {
+    pub fn withdraw(&mut self, account_id: &AccountId, amount: Money) -> Result<(), BankError> {
         // needed to implement PartialOrd to unlock >, <, >=, <= for Money type.
         if amount < Money(0) {
-            println!("amount cannot be negative");
-            return;
+            return Err(BankError::InvalidAmount);
         } else if amount == Money(0) {
-            println!("invalid withdrawal");
-            return;
+            return Err(InvalidTransferAmount);
         }
 
         match self.accounts.get_mut(account_id) {
             Some(account) => {
                 if amount > account.balance {
-                    println!("insufficient funds for withdrawal.");
-                    return;
+                    return Err(BankError::InsufficientFunds);
                 }
                 // ERROR : cannot move out balance (for passing to the add() fn) because account is behind a mutable reference, we don't own the account.
                 // SOLUTION : copy the balance value out, and reassign the account.balance field after mutating it.
@@ -408,11 +414,13 @@ impl Bank {
                 // operation, leaving the original field in place until we
                 // assign the returned Money back to account.balance.
                 account.balance = account.balance - amount;
+                account
+                    .transactions
+                    .push(TransferOut(account.id.clone(), amount));
                 println!("amount : {:?} withdrawn successfully!", amount);
+                Ok(())
             }
-            None => {
-                println!("account not found!");
-            }
+            None => return Err(BankError::AccountNotFound),
         }
     }
 
@@ -608,6 +616,9 @@ impl Bank {
             .expect("source account was validated above");
 
         source.balance = source.balance - amount;
+        source
+            .transactions
+            .push(TransferOut(account_two.clone(), amount));
 
         let destination = self
             .accounts
@@ -615,6 +626,9 @@ impl Bank {
             .expect("destination account was validated above");
 
         destination.balance = destination.balance + amount;
+        destination
+            .transactions
+            .push(TransferIn(account_one.clone(), amount));
 
         Ok(())
     }
@@ -677,5 +691,23 @@ impl Bank {
         acc_two.balance = acc_two.balance + amount;
 
         println!("amount transferred successfully");
+    }
+
+    pub fn get_transaction_history(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<Vec<&TransactionType>, BankError> {
+        match self.accounts.get(account_id) {
+            Some(account) => {
+                let mut transaction_vec: Vec<&TransactionType> = Vec::new();
+
+                for transaction in &account.transactions {
+                    transaction_vec.push(&transaction);
+                }
+
+                Ok(transaction_vec)
+            }
+            None => Err(BankError::AccountNotFound),
+        }
     }
 }

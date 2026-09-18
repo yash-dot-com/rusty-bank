@@ -9,8 +9,8 @@ pub enum AccountType {
 pub enum TransactionType {
     Deposit,
     Withdrawal,
-    TransferOut(AccountId), // what's this ?
-    TransferIn(AccountId),  // this too ?
+    TransferOut(AccountId, Money), // what's this ?
+    TransferIn(AccountId, Money),  // this too ?
 }
 
 // creating custom types
@@ -76,7 +76,7 @@ pub struct Account {
     pub account_type: AccountType,
     pub owner_id: CustomerId,
     pub balance: Money,
-    pub transactions: Vec<Transaction>, // transaction objects owned by accounts
+    pub transactions: Vec<TransactionType>, // transaction objects owned by accounts
 }
 
 impl Account {
